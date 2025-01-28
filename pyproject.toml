@@ -1,0 +1,12 @@
+[project]
+name = "debug-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "anthropic>=0.45.2",
+    "ipykernel>=6.29.5",
+    "mypy>=1.14.1",
+    "python-dotenv>=1.0.1",
+]
