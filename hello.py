@@ -1,45 +1,10 @@
 from functools import lru_cache
-import subprocess
 from typing import Any
 import anthropic
 import os
 import dotenv
-from dataclasses import dataclass
 
-
-@dataclass
-class Property:
-    description: str
-    type: str
-    required: bool
-
-    def to_dict(self):
-        return {
-            "description": self.description,
-            "type": self.type,
-        }
-
-
-@dataclass
-class Tool:
-    name: str
-    description: str
-    function: callable
-    properties: dict[str, Property]
-
-    def to_dict(self):
-        return {
-            "name": self.name,
-            "description": self.description,
-            "input_schema": {
-                "type": "object",
-                "properties": {k: v.to_dict() for k, v in self.properties.items()},
-                "required": [k for k, v in self.properties.items() if v.required],
-            },
-        }
-
-    def call(self, input: dict):
-        return self.function(**input)
+from tools import Tool, TOOLS
 
 
 class ModelMessageHandler:
@@ -70,6 +35,7 @@ class ModelSession:
         response = self.client.messages.create(
             model=self.model,
             max_tokens=self.max_tokens,
+            system="You are an assistant to help software developers debug their code. Your focus is on correctness and performance. Correctness is more important than performance. Ask clarifying questions.",
             messages=self.messages,
             tools=self._tools_cache,
         )
@@ -106,28 +72,14 @@ class ModelSession:
         print(self._tools_cache)
 
 
-def execute_shell_code(code: str):
-    return subprocess.run(code, shell=True, capture_output=True, text=True).stdout
-
-
 def main():
     dotenv.load_dotenv()
-    print("Hello from debug-agent!")
     model = ModelSession(handler=ModelMessageHandler())
-    shell_tool = Tool(
-        name="shell",
-        description="Execute shell code on the host machine",
-        function=execute_shell_code,
-        properties={
-            "code": Property(
-                description="The shell code to execute", type="string", required=True
-            )
-        },
+    for t in TOOLS:
+        model.add_tool(t)
+    resp = model.send_message(
+        "I have a bug in my quicksort implementation in qsort.py. Fix it."
     )
-    model.add_tool(shell_tool)
-    resp = model.send_message("Hello, Claude, I am steve.")
-    resp = model.send_message("What's my name?")
-    resp = model.send_message("Is Python installed?")
 
 
 if __name__ == "__main__":
